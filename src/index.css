@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* For WebKit browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 8px; /* Adjust width for vertical scrollbar */
+  height: 8px; /* Adjust height for horizontal scrollbar */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #333;
+  border-radius: 0; /* No roundness */
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent; /* Optional: make track transparent */
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin; /* Thin scrollbar */
+  scrollbar-color: #333 transparent; /* Thumb color and track color */
+}

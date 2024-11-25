@@ -11,7 +11,8 @@ export default {
         "graphite-gray": "#202223",
         "elec-blue": "#006EFF",
         "light-silver": "#F6F6F8",
-      }
+        "sh-gray": "#00000080"
+      },
     },
   },
   plugins: [],
