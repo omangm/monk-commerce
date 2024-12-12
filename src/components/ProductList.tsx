@@ -82,12 +82,12 @@ export const ProductList = () => {
                                                         : "bg-white"
                                                     }
                                             `}
-                                            onMouseDown={(e) => {
-                                                e.stopPropagation();
-                                            }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                            }}
+                                                onMouseDown={(e) => {
+                                                    e.stopPropagation();
+                                                }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                }}
                                             >
                                                 <p>{product.name}</p>
                                                 <input

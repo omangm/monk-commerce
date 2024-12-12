@@ -1,2 +1,3 @@
-export * from "./Header";
-export * from "./ProductForm";
+export { Header } from "./Header";
+export { ProductForm } from "./ProductForm";
+export { Variant } from "./Variant";

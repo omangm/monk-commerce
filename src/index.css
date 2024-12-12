@@ -22,3 +22,15 @@
   scrollbar-width: thin; /* Thin scrollbar */
   scrollbar-color: #333 transparent; /* Thumb color and track color */
 }
+
+@layer utilities {
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    @apply appearance-none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    @apply [appearance:textfield];
+  }
+}

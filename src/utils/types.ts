@@ -1,8 +1,15 @@
+export interface IDiscount {
+  type: 'flat' | 'percentage';
+  value: number;
+}
+
 export interface IVariant {
   id: number;
   product_id: number;
   title: string;
-  price: string;
+  price: number;
+  inventory_quantity: number;
+  discount?: IDiscount;
 }
 
 export interface Image {
@@ -16,4 +23,9 @@ export interface IProduct {
   title: string;
   variants: IVariant[];
   image?: Image;
+  discount?: IDiscount;
 }
+
+export interface ISearchResult extends IProduct {
+  selected: boolean;
+} 

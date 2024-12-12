@@ -1,152 +1,191 @@
 import { fetchProducts } from "@/queries/products";
 import { debounce } from "@/utils/debounce";
-import { useEffect, useRef, useState } from "react";
-
-interface IProduct {
-  id: string;
-  title: string;
-}
+import { IProduct, ISearchResult } from "@/utils/types";
+import { useCallback, useEffect, useRef, useState, memo } from "react";
+import { Checkbox } from "./Checkbox";
+import { useResultsStore } from "@/store/resultsStore";
 
 const ProductsResult = ({ query }: { query: string }) => {
-  const [searchResults, setSearchResults] = useState<IProduct[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [areAllResultsFetched, setAreAllResultsFetched] = useState(false);
+  const { searchResults, addResults, setResults } = useResultsStore();
   const observerRef = useRef<HTMLDivElement | null>(null);
-  const initialLoad = useRef(true);
 
-  const fetchSearchResults = async (searchQuery: string, pageNum: number) => {
+  const fetchSearchResults = useCallback(async (searchQuery: string, pageNum: number) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const response = await fetchProducts(searchQuery, pageNum);
-      
-      // If we get null (204 status), mark all as fetched
-      if (response === null) {
+      const response: IProduct[] = await fetchProducts(searchQuery, pageNum);
+
+      const validProducts = response.filter(product => 
+        product.variants.some(variant => 
+          variant.inventory_quantity > 0 && 
+          String(variant.price) &&
+          parseFloat(String(variant.price)) > 0
+        )
+      );
+
+      const searchResults: ISearchResult[] = validProducts.map(product => ({
+        ...product,
+        selected: false,
+        variants: product.variants.filter(variant => 
+          variant.inventory_quantity > 0 && 
+          String(variant.price) && 
+          parseFloat(String(variant.price)) > 0
+        )
+      }));
+
+      if (!validProducts || validProducts.length === 0) {
         setAreAllResultsFetched(true);
-        // Only clear results if it's the first page
-        if (pageNum === 1) {
-          setSearchResults([]);
-        }
+        if (pageNum === 1) setResults([]);
         return;
       }
 
-      // If we get an empty array or fewer items than expected, mark all as fetched
-      if (response.length === 0) {
-        setAreAllResultsFetched(true);
+      if (pageNum === 1) {
+        setResults(searchResults)
+      } else {
+        addResults(searchResults);
       }
 
-      setSearchResults(prev => pageNum === 1 ? response : [...prev, ...response]);
     } catch (error) {
-      console.error('Error fetching products:', error);
-      // On error, keep existing results but stop pagination
+      console.error("Error fetching products:", error);
       setAreAllResultsFetched(true);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setResults, addResults, setIsLoading, setAreAllResultsFetched]);
 
-  const debouncedSearch = debounce((searchQuery: string) => {
-    if (searchQuery.length <= 0) {
-      setSearchResults([]);
-      setAreAllResultsFetched(false);
-      setPage(1);
-      return;
-    }
-    // Reset pagination state for new search
-    setPage(1);
-    setAreAllResultsFetched(false);
-    fetchSearchResults(searchQuery, 1);
-  }, 750);
+  const debouncedSearch = useCallback(
+    (searchQuery: string) => {
+      debounce(() => {
+        setPage(1);
+        setAreAllResultsFetched(false);
+        fetchSearchResults(searchQuery, 1);
+      }, 750)();
+    },
+    [fetchSearchResults]
+  );
 
   useEffect(() => {
-    if (!initialLoad.current) {
+    if (query.trim()) {
       debouncedSearch(query);
+    } else {
+      setResults([])
+      setAreAllResultsFetched(false);
     }
-    initialLoad.current = false;
-
-    return () => {
-      // Clean up any pending debounced calls
-      // debouncedSearch.cancel?.();
-    };
-  }, [query]);
+  }, [query, debouncedSearch, setResults]);
 
   useEffect(() => {
+    if (!observerRef.current) return;
+
     const observer = new IntersectionObserver(
-      (entries) => {
-        const isVisible = entries[0].isIntersecting;
+      ([entry]) => {
         if (
-          isVisible && 
-          !isLoading && 
-          !areAllResultsFetched && 
-          query.length > 2 &&
-          searchResults.length > 0
+          entry.isIntersecting &&
+          !isLoading &&
+          !areAllResultsFetched &&
+          query.length >= 2
         ) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          fetchSearchResults(query, nextPage);
+          setPage((prev) => {
+            const nextPage = prev + 1;
+            fetchSearchResults(query, nextPage);
+            return nextPage;
+          });
         }
       },
-      { 
-        threshold: 0.1,  // Reduced threshold for earlier trigger
-        rootMargin: '100px' // Load more content before reaching the end
-      }
+      { threshold: 0.1, rootMargin: "100px" }
     );
 
-    const currentObserverRef = observerRef.current;
-    if (currentObserverRef) {
-      observer.observe(currentObserverRef);
-    }
-
-    return () => {
-      if (currentObserverRef) {
-        observer.unobserve(currentObserverRef);
-      }
-      observer.disconnect();
-    };
-  }, [query, page, isLoading, areAllResultsFetched, searchResults.length]);
-
-  const renderContent = () => {
-    if (isLoading && page === 1) {
-      return <p className="text-center text-gray-500 py-4">Searching...</p>;
-    }
-
-    if (searchResults.length === 0 && query.length > 2 && !isLoading) {
-      return <p className="text-center text-gray-500 py-4">No products found</p>;
-    }
-
-    return (
-      <>
-        {searchResults.map((result) => (
-          <div className="py-4 border-b" key={result.id}>
-            <p>{result.title}</p>
-          </div>
-        ))}
-        
-        {!areAllResultsFetched && searchResults.length > 0 && (
-          <div 
-            ref={observerRef} 
-            className="h-10 flex items-center justify-center"
-          >
-            {isLoading ? (
-              <p className="text-gray-500">Loading more products...</p>
-            ) : (
-              <p className="text-gray-400">Scroll for more</p>
-            )}
-          </div>
-        )}
-
-        {areAllResultsFetched && searchResults.length > 0 && (
-          <p className="text-center text-gray-500 py-4">No more products to load</p>
-        )}
-      </>
-    );
-  };
+    observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [query, isLoading, areAllResultsFetched, fetchSearchResults]);
 
   return (
-    <div className="p-4 h-[60vh] overflow-auto border-t border-black border-opacity-10">
-      {renderContent()}
+    <div className="h-[60vh] overflow-auto border-t border-black border-opacity-10">
+      {isLoading && page === 1 ? (
+        <p className="text-center text-gray-500 py-4">Searching...</p>
+      ) : searchResults.length === 0 && query.length > 2 ? (
+        <p className="text-center text-gray-500 py-4">No products found</p>
+      ) : (
+        <>
+          {searchResults.map((product) => (
+            <SearchResult key={product.id} product={product} />
+          ))}
+          {!areAllResultsFetched && (
+            <div
+              ref={observerRef}
+              className="h-10 flex items-center justify-center text-gray-500"
+            >
+              {isLoading ? "Loading more products..." : "Scroll for more"}
+            </div>
+          )}
+          {areAllResultsFetched && (
+            <p className="text-center text-gray-500 py-4">
+              No more products to load
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 };
+
+const SearchResult = memo(({ product }: { product: IProduct }) => {
+  const { selectedVariants, toggleProductSelection, toggleVariantSelection } = useResultsStore();
+  const productSelectedVariants = selectedVariants[product.id] || new Set();
+
+  const allVariantsSelected = productSelectedVariants.size === product.variants.length;
+  const someVariantsSelected = productSelectedVariants.size > 0 && !allVariantsSelected;
+
+  return (
+    <div>
+      <div className="px-6 py-4 border-b border-black border-opacity-10 flex items-center gap-4">
+        <Checkbox
+          onChange={(e) =>
+            toggleProductSelection(product.id, product.variants, e.target.checked)
+          }
+          checked={allVariantsSelected || someVariantsSelected}
+          variant="medium"
+        />
+        {product.image?.src && (
+          <img
+            src={product.image.src}
+            alt={product.title || 'Product image'}
+            className="w-8 h-8 rounded"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+            loading="lazy"
+          />
+        )}
+        <p className="text-black text-lg">{product.title}</p>
+      </div>
+      <div>
+        {product.variants.map((variant) => (
+          <div
+            key={variant.id}
+            className="px-10 py-5 flex items-center justify-between border-b border-black border-opacity-10"
+          >
+            <div className="flex gap-3">
+              <Checkbox
+                onChange={(e) =>
+                  toggleVariantSelection(product.id, variant.id, e.target.checked)
+                }
+                checked={productSelectedVariants.has(variant.id)}
+              />
+              <p className="text-black">{variant.title}</p>
+            </div>
+            <div className="flex gap-6">
+              <p className="text-black">{variant.inventory_quantity} available</p>
+              <p className="text-black">${variant.price}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+SearchResult.displayName = 'SearchResult';
 
 export default ProductsResult;

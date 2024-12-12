@@ -1,32 +1,51 @@
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
+function debounce<
+  F extends (...args: Parameters<F>) => ReturnType<F>
+>(
+  func: F,
   wait: number,
   immediate: boolean = false
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
+): F & { cancel: () => void } {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
 
-  return function (this: any, ...args: Parameters<T>): void {
+  const debouncedFunction = function (this: unknown, ...args: Parameters<F>): ReturnType<F> | undefined {
+    let result: ReturnType<F> | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const context = this;
 
     const later = () => {
       timeout = null;
       if (!immediate) {
-        func.apply(context, args);
+        result = func.apply(context, args);
       }
     };
 
     const callNow = immediate && !timeout;
 
-    if (timeout) {
+    // Clear any existing timeout
+    if (timeout !== null) {
       clearTimeout(timeout);
     }
 
+    // Set a new timeout
     timeout = setTimeout(later, wait);
 
+    // Execute immediately if immediate is true
     if (callNow) {
-      func.apply(context, args);
+      result = func.apply(context, args);
+    }
+
+    return result;
+  } as F & { cancel: () => void };
+
+  // Add a cancel method to allow manual cancellation
+  debouncedFunction.cancel = () => {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+      timeout = null;
     }
   };
-};
+
+  return debouncedFunction;
+}
 
 export { debounce };
