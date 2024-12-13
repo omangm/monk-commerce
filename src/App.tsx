@@ -1,13 +1,12 @@
-import { Header, ProductForm } from "@/components"
+import { Header, ProductForm } from "@/components";
 
 function App() {
-
-  return (
-    <div>
-      <Header />
-      <ProductForm />
-    </div>
-  )
+	return (
+		<div>
+			<Header />
+			<ProductForm />
+		</div>
+	);
 }
 
 export default App;
