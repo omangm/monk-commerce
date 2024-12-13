@@ -1,0 +1,17 @@
+*.json
+*.yml
+*.config.ts
+*.config.js
+*.d.ts
+node_modules
+.husky
+public
+.eslintrc.cjs
+.gitigone
+.env
+Docker*
+*.md
+*.html
+*.css
+.prettierrc
+pnpm-lock.yaml
