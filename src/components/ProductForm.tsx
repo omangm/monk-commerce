@@ -79,6 +79,7 @@ export const ProductForm = () => {
 										)}
 									</Draggable>
 								))}
+								{provided.placeholder}
 							</div>
 						)}
 					</Droppable>

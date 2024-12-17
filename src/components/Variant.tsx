@@ -15,7 +15,7 @@ export const Variant = ({
 	const { updateVariant, removeVariant } = useProductStore();
 
 	return (
-		<div className="my-4 flex items-center gap-[14px]">
+		<div className="py-2 flex items-center gap-[14px]">
 			<div {...dragHandleProps}>
 				<GripVerticalIcon className="cursor-grab text-[#00000080]" />
 			</div>

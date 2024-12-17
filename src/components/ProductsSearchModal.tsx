@@ -2,7 +2,7 @@ import { ChangeEvent, useState } from "react";
 import ProductsResult from "./ProductsResult";
 import { useResultsStore } from "@/store/resultsStore";
 import { useProductStore } from "@/store/productStore";
-import { IProduct } from "@/utils/types";
+import { IDiscount, IProduct } from "@/utils/types";
 import { Search, X } from "lucide-react";
 
 interface ModalProps {
@@ -21,22 +21,29 @@ export const ProductsSearchModal = ({ isOpen, onClose, title }: ModalProps) => {
 
 	const handleAddProducts = () => {
 		// Get the selected products from results
-		const selectedProducts: IProduct[] = searchResults
-			.filter((product) => selectedVariants[product.id]?.size > 0)
-			.map((product) => ({
-				id: product.id, // Generate unique ID for each product
-				title: product.title,
-				variants: product.variants
-					.filter((variant) => selectedVariants[product.id]?.has(variant.id))
-					.map((variant) => ({
-						...variant,
-						discount: {
-							type: "percentage",
-							value: 0,
+		const selectedProducts: IProduct[] = Array.from(
+			new Map(
+				searchResults
+					.filter((product) => selectedVariants[product.id]?.size > 0)
+					.map((product) => [
+						product.id,
+						{
+							id: product.id, // Generate unique ID for each product
+							title: product.title,
+							variants: product.variants
+								.filter((variant) => selectedVariants[product.id]?.has(variant.id))
+								.map((variant) => ({
+									...variant,
+									discount: {
+										type: "percentage" as IDiscount["type"],
+										value: 0,
+									},
+								})),
+							image: product.image,
 						},
-					})),
-				image: product.image,
-			}));
+					])
+			).values()
+		);
 
 		// Remove any empty products
 		removeEmptyProducts();

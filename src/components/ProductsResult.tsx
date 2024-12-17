@@ -1,12 +1,12 @@
 import { fetchProducts } from "@/queries/products";
 import { debounce } from "@/utils/debounce";
 import { IProduct, ISearchResult } from "@/utils/types";
-import { useCallback, useEffect, useRef, useState, memo } from "react";
-import { Checkbox } from "./Checkbox";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useResultsStore } from "@/store/resultsStore";
+import SearchResult from "./SearchResult";
 
 const ProductsResult = ({ query }: { query: string }) => {
-	const [page, setPage] = useState(1);
+	const [page, setPage] = useState(0);
 	const [isLoading, setIsLoading] = useState(false);
 	const [areAllResultsFetched, setAreAllResultsFetched] = useState(false);
 	const { searchResults, addResults, setResults } = useResultsStore();
@@ -18,31 +18,10 @@ const ProductsResult = ({ query }: { query: string }) => {
 			try {
 				const response: IProduct[] = await fetchProducts(searchQuery, pageNum);
 
-				const validProducts = response.filter((product) =>
-					product.variants.some(
-						(variant) =>
-							variant.inventory_quantity > 0 &&
-							String(variant.price) &&
-							parseFloat(String(variant.price)) > 0,
-					),
-				);
-
-				const searchResults: ISearchResult[] = validProducts.map((product) => ({
+				const searchResults: ISearchResult[] = response.map((product) => ({
 					...product,
 					selected: false,
-					variants: product.variants.filter(
-						(variant) =>
-							variant.inventory_quantity > 0 &&
-							String(variant.price) &&
-							parseFloat(String(variant.price)) > 0,
-					),
 				}));
-
-				if (!validProducts || validProducts.length === 0) {
-					setAreAllResultsFetched(true);
-					if (pageNum === 1) setResults([]);
-					return;
-				}
 
 				if (pageNum === 1) {
 					setResults(searchResults);
@@ -84,12 +63,7 @@ const ProductsResult = ({ query }: { query: string }) => {
 
 		const observer = new IntersectionObserver(
 			([entry]) => {
-				if (
-					entry.isIntersecting &&
-					!isLoading &&
-					!areAllResultsFetched &&
-					query.length >= 2
-				) {
+				if (entry.isIntersecting && !isLoading && !areAllResultsFetched) {
 					setPage((prev) => {
 						const nextPage = prev + 1;
 						fetchSearchResults(query, nextPage);
@@ -133,76 +107,5 @@ const ProductsResult = ({ query }: { query: string }) => {
 		</div>
 	);
 };
-
-const SearchResult = memo(({ product }: { product: IProduct }) => {
-	const { selectedVariants, toggleProductSelection, toggleVariantSelection } =
-		useResultsStore();
-	const productSelectedVariants = selectedVariants[product.id] || new Set();
-
-	const allVariantsSelected =
-		productSelectedVariants.size === product.variants.length;
-	const someVariantsSelected =
-		productSelectedVariants.size > 0 && !allVariantsSelected;
-
-	return (
-		<div>
-			<div className="flex items-center gap-4 border-b border-black border-opacity-10 px-6 py-4">
-				<Checkbox
-					onChange={(e) =>
-						toggleProductSelection(
-							product.id,
-							product.variants,
-							e.target.checked,
-						)
-					}
-					checked={allVariantsSelected || someVariantsSelected}
-					variant="medium"
-				/>
-				{product.image?.src && (
-					<img
-						src={product.image.src}
-						alt={product.title || "Product image"}
-						className="h-8 w-8 rounded"
-						onError={(e) => {
-							(e.target as HTMLImageElement).style.display = "none";
-						}}
-						loading="lazy"
-					/>
-				)}
-				<p className="text-lg text-black">{product.title}</p>
-			</div>
-			<div>
-				{product.variants.map((variant) => (
-					<div
-						key={variant.id}
-						className="flex items-center justify-between border-b border-black border-opacity-10 px-10 py-5"
-					>
-						<div className="flex gap-3">
-							<Checkbox
-								onChange={(e) =>
-									toggleVariantSelection(
-										product.id,
-										variant.id,
-										e.target.checked,
-									)
-								}
-								checked={productSelectedVariants.has(variant.id)}
-							/>
-							<p className="text-black">{variant.title}</p>
-						</div>
-						<div className="flex gap-6">
-							<p className="text-black">
-								{variant.inventory_quantity} available
-							</p>
-							<p className="text-black">${variant.price}</p>
-						</div>
-					</div>
-				))}
-			</div>
-		</div>
-	);
-});
-
-SearchResult.displayName = "SearchResult";
 
 export default ProductsResult;
